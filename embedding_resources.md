@@ -159,3 +159,6 @@ c) Not sure whether the overrides should use postfix `_platform` or
 a prefix `platform_` . The prefix version will keep the extension
 unchanged, so that external editors and file managers will be able 
 to open the platform versions without tweaks, which is a plus.
+
+# Resources:
+https://blog.gobuffalo.io/introducing-pkger-static-file-embedding-in-go-1ce76dc79c65
