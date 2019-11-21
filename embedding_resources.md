@@ -1,8 +1,8 @@
 # Embedding resources in v programs.
 
 ## Motivation (why is this needed):
-Programs frequently want to be as standalone as possible, because that
-makes distribution to end users much easier. That goal may be achieved by
+Programs frequently want to be as self contained as possible, because that
+makes distribution to end users much easier. That goal may be helped by
 embedding binary resources directly inside the distributed executable.
 
 ## Why existing approaches are not sufficient:
@@ -80,10 +80,10 @@ which once compiled will embed the data inside the executable).
 Embedding will support `_platform` postfix overrides for the files.
 The embed_full_path will be assigned and tried the following locations, 
 and in this order:
-a) *main_path* + *embed_path_platform*
-a) *main_path* + *embed_path*
-b) *mod_path* + *embed_path_platform*
-b) *mod_path* + *embed_path*
+a) *main_path* / *modname* / *embed_path_platform*
+a) *main_path* / *modname* / *embed_path*
+b) *mod_path*  / *embed_path_platform*
+b) *mod_path*  / *embed_path*
 
 In the example from above, the following paths will be tried in order:
 1) project/abc/resource/table.bin_linux  ==> missing
