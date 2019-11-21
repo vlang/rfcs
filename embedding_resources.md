@@ -43,10 +43,12 @@ prone manual code too.
 # Proposed solution: add resource embeding support directly to v itself.
 
 Suppose that you have a v module `abc`, with the following tree structure:
+```
 abc/abc.v
 abc/resource/table.bin
 abc/resource/table.bin_linux
 abc/resource/table.bin_windows
+```
 
 Suppose also, that you want to use the module abc in a v program, 
 located in a separate folder, with the following structure:
