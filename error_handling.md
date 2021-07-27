@@ -8,13 +8,13 @@ It was several times discussed to change the current error handling / none handl
 It would be better to break them down into two types and the developer specifies which one he actually wants to use.
 
 ```v
-fn foo() ?string {...}
+fn foo() ?T {...}
 
 foo() or {
   // should I return a default value when none is returned or panic when an error is returned?
 }
 ```
-The above example currently returns either a `string`, `none` or an `IError`, even if the function only returns `none` and `string` the end user might have to write code that also works with `IError` because the function could return it.
+The above example currently returns either a `T`, `none` or an `IError`, even if the function only returns `none` and `T` the end user might have to write code that also works with `IError` because the function could return it.
 
 ---
 **NOTE**
@@ -35,12 +35,12 @@ foo() or {
 ## Specification
 Implementing anonymous sum types could help allowing the developer to define the return type as:
 ```v
-fn foo() string | none | Error {...}
+fn foo() T | none | Error {...}
 ```
-whereas the part `string | none` can be shortened with `?string`.
+whereas the part `string | none` can be shortened with `?T`.
 It would result in
 ```v
-fn foo() ?string | Error {...}
+fn foo() ?T | Error {...}
 ```
 where `?` is a shortcut for a sum type `Option` whose implementation could look like this:
 ```
@@ -50,7 +50,6 @@ Error wouldn't have a syntax sugar in this case.
 
 ### Downsides of this specification
 - Anonymous sum types are not yet implemented and needs to be implemented first
-- Generic sum types are not yet implemented and needs to be implemented first
 - The Option sum type needs to be compiler generated rather than syntax generated to make it possible to be used inside `builtin`. Caching generics isn't possible yet.
 - `or{}` block would be the Jack of all trades because it is used for two special kinds of sum types that are not related to each other and doesn't share anything.
 - It would be possible to define variables like `x := Option<string>('foo') // or ?string('foo')` (it's obviously a sum type that can be used everywhere) but this feature should only be used for return types of functions and struct fields. One solution would be to restrict this sum type.
