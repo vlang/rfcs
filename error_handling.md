@@ -1,10 +1,10 @@
 # Revamping error and none handling
 
 ## Abstract
-This RFC proposes to change the current error handling mechanism, because the current `Option` type allows three values, `none`, `IError` and `T`. Handling three different kinds of values in every `or{}` block is hard and could lead to unwanted behavior.
+This RFC proposes to change the current error handling mechanism, because the current `Option` type allows three values, `none`, `IError` and `T`. Handling three different kinds of values in every `or{}` block is confusing and could lead to unwanted behavior.
 
 ## Introduction
-It was several times discussed to change the current error handling / none handling mechanism because of the reason that `Option` allows three values.
+It was several times discussed to change the current error handling / none handling mechanism because `Option` allows three values.
 It would be better to break them down into two types and the developer specifies which one he actually wants to use.
 
 ```v
@@ -16,14 +16,19 @@ foo() or {
 ```
 The above example currently returns either a `string`, `none` or an `IError`, even if the function only returns `none` and `string` the end user might have to write code that also works with `IError` because the function could return it.
 
-> The new examples will use `Option` and `Result` to distinguish between `?` syntax. It's not the final syntax yet.
+---
+**NOTE**
+
+The new examples will use `Option` and `Result` to distinguish between `?` syntax. It's not the final syntax yet.
+
+---
 
 If the `foo()` function would specify if the result is either an `Option` or `Result`, the end user also knows how to handle it correctly
 ```v
 fn foo() Option<string> {...}
 
 foo() or {
-  // Ok, I know this is none here, just provide a default value. No error happened that needs to be paniced.
+  // Ok, I know this is none here, just provide a default value. No error happened that needs to be panicked.
 }
 ```
 
@@ -59,7 +64,13 @@ That means `?string` would mean `Option<string>` and `!string` would mean `Resul
 
 There is only one tricky part: `?!string` or `!?string`. What would it mean? Which ordner is needed? One solution would be to define that the order doesn't matter.
 `!?` or `?!` always results in `Result<Option<T>>` or `T | none | Error`. But V fmt could always reformat it to `!?` for example.
-> This is even a rare case. It's complexity isn't that awful.
+
+---
+**NOTE**
+
+This is even a rare case. It's complexity isn't that awful.
+
+---
 
 ### Handling `Result<Option<T>>`
 Handling `?T` and `!T` is very easy and it will stay as it currently is:
@@ -78,7 +89,12 @@ match foo() {
   else {/* result is the wanted value */}
 }
 ```
-> We can decide to use `it` or `foo() as x`
+---
+**NOTE**
+
+We can decide to use `it` or `foo() as x`
+
+---
 
 ## Open Issues
 Since this was discussed several times and is still an unsolved issue we would need to change it as long V is in alpha stage.
