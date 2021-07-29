@@ -37,6 +37,7 @@ In case all three values could be possible, `T`, `none` or `error`, implementing
 ```v
 fn foo() T | none | Error {...}
 ```
+Using `!?T` will be forbidden.
 
 ### Downsides of this specification
 - Anonymous sum types are not yet implemented and needs to be implemented first
