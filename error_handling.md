@@ -68,6 +68,26 @@ We can decide to use `it` or `foo() as x`
 
 ---
 
+The following shows a "reification" of !T which must not be supported by V:
+```v
+fn foo() !string {...}
+x := foo()  // assignment is reification of a Result
+println( foo() )  // passing as an argument is reification of a Result
+```
+Instead one must use:
+```v
+fn foo() !string {...}
+x := foo() or { 'abc' }
+y := foo() !
+z := match foo() { error { 'abc' } else { it } }
+println( /* either of the 3 lines above */ )
+fn bar() string | none | error {...}
+// a is of type string
+a := match foo() { error { 'abc' } none { 'none' } else { it } }
+// b is of type (string | none)
+b := match foo() { error { 'abc' } else { it } }
+```
+
 ## Open Issues
 Since this was discussed several times and is still an unsolved issue we would need to change it as long V is in alpha stage.
 This change also brings breaking changes no matter which syntax will be chosen.
