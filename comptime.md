@@ -1,4 +1,4 @@
-# Advanced compile-time
+# Compile-time execution
 
 # Summary 
 
