@@ -108,7 +108,7 @@ This design allows to execute entire V language at comptime and it makes it poss
 *Changes suggested by dumblob*
 - Overall improvement of safey: compile-time assertions, ahead-of-time proving of correctness of certains properties of passed data to a function etc.
 - Optimization. Proving certain aspects of given data etc. For example regex module that compiles regular expressions to bytecode at compile-time instead of wasting time at runtime.
-If we would not implement proper compotime until `1.0` we probably would never manage to do so after `1.0` release. Rust for example still does not have full `const fn` support in stable release. Also if we would not implement this it would limit our compile-time reflection by a lot. 
+If we would not implement proper comptime until `1.0`, we probably would never manage to do so after the `1.0` release. Rust for example still does not have full `const fn` support in stable release. Also if we would not implement this, it would limit our compile-time reflection by a lot. 
 
 # Prior art 
 
