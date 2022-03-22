@@ -130,7 +130,7 @@ This would break a lot of code that depends on current implementation of compile
 This design allows to execute entire V language at comptime and it makes it possible to:
 - Implement serializers/deserializers
 - Write code that would produce new code a-la Lisp macros 
-- Write code that would generate new types for example generating Matrix struct with demensions known at compile-time.
+- Write code that would generate new types for example generating Matrix struct with dimensions known at compile-time.
 *Changes suggested by dumblob*
 - Overall improvement of safey: compile-time assertions, ahead-of-time proving of correctness of certains properties of passed data to a function etc.
 - Optimization. Proving certain aspects of given data etc. For example regex module that compiles regular expressions to bytecode at compile-time instead of wasting time at runtime.
