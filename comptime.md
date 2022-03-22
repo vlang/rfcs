@@ -29,15 +29,15 @@ $if flag_a {
 
 # Guide-level explanation 
 
-With this RFC the main change is that all expressions and statements prefixed with `$` will be treated as compile-time and all of them can be executed *before* codegen. Current compile-time is quite limited and allows only a few statements (`$if`,`$for`) and only specific calls.
+With this RFC the main change is that all expressions and statements prefixed with `comptime` will be treated as compile-time and all of them can be executed *before* codegen. Current compile-time is quite limited and allows only a few statements (`$if`,`$for`) and only specific calls.
 
 You can compare new way of handling comtime to Zig comptime functionality. It would allow us not only to perform some computations at compile-time but also generate new structures and functions at compile-time. All generic types would not be just some compiler magic but `v.ast.Type` and you should be able to invoke all of its methods at compile-time, get type symbol from it and even create new `v.ast.Type`s at compile-time.  
 
 First where comptime can be used is automatic generation of serialization/deserialization functions. Here's small example of how we can implement automatic `str()` for types: 
 ```v
 fn to_str<T>(val T) string {
-    // FIXME: Decide if generic type is `v.ast.Type` or `v.ast.TypeSymbol`
-    $if T.kind == .int {
+    // Type of `T` in compile-time context is `v.ast.TypeSymbol`
+    comptime if T.kind == .int {
         return int_string(val)
     } else if T.kind == .array {
         mut out := '['
@@ -50,7 +50,7 @@ fn to_str<T>(val T) string {
         return '${out}]'
     } else if T.kind == .struct_ {
         out = '${$T.name} {'
-        $for field in T.fields {
+        comptime for field in T.fields {
             field := val.$field 
             out = '${out} ${$field}: ${field}'
         }
@@ -61,7 +61,6 @@ fn to_str<T>(val T) string {
 }
 ```
 
-Notice that we do not have `$else` anymore, that is because with this proposal if parser sees `$` it simply continues parsing V statements or expressions *but* parsed statement and expression will be marked with `comptime` flag.
 
 And here is simple example of factorial that is executed fully at compile-time! 
 ```v
@@ -74,8 +73,9 @@ fn factorial(x int) int {
 }
 
 fn main() {
-    cx := $factorial(5) // call prefixed with `$` becomes compile-time call
-    $cy := factorial(6) // variable assignment prefixed with `$` puts it to compile-time environment 
+    cx := comptime factorial(5) // in this case variable `cx` exists in generated code and only result of evaluating factorial is stored in it
+    comptime cy := factorial(6) // and in this case variable `cy` exists only at compile-time, every time you try to use it from non
+                                // comptime context its value is simply inserted into AST tree: `ast.Comptime(ast.Ident('cy'))` becomes `ast.Int(720)`
     println(cx) // 120 
     println($cy) // 720
 }
@@ -83,17 +83,43 @@ fn main() {
 
 # Reference-level explanation 
 
-In parsing we should change our handling of `$` symbol. Instead of parsing specific comptime cases we should simply continue parsing expression or statement but in the end mark it with `comptime`. `comtpime` mark can be stored in each of AST nodes. 
+To add parser support for CTE we can just add `comtpime` keyword support and everything that comes after it is treated as `ast.ComptimeExpr(ast.Expr)` or `ast.ComptimeStmt(ast.Stmt)`. 
 
-To implement this we would not need to significantly change checker, we would just need to add additional compile-time environment for comptime variables (generics will be treated as comptime variables too!). After code is checked we would just continue to codegen and each of `v.gen.*` implementations *must* evaluate expressions and statements marked with `comptime`. This is where it might get complex but to solve this we will simply use `v.eval`, `v.eval.Eval` will be stored per generation context. We should also find a way to pass generation context to eval context so we can for example implement `include` builtin call that would include C/JS file into output file. Something like this:
+In order to implement proper evaluation mechanism we want to have `mx1` and `mx`-like evaluation in our compiler pipeline. In our case it might look like this:
+```
+eval1(code):
+    check(code) // type check code
+    return interp(code) // evaluate all comptime nodes in `code`
 
+eval(code):
+    output = eval1(code) 
+    expanded = 0 
+    // if output has comptime expressions or statements evaluate it once again
+    while output.has_cte() && expanded < cte_limit:
+        output = eval1(output)
+    if expanded == cte_limit:
+        error('CTE limit reached')
+    return output
+```
+
+As we can see we also can limit CTE expansion so it is impossible to create infinite loop at compile-time (unless user manually overwrites CTE limit through compiler flags). 
+
+## How would `eval1` work? 
+
+It should simply use `v.eval` functionality to evaluate all `comptime` AST nodes, result of evaluation should replace these comptime nodes:
 ```v
-gen.eval.add_func('include', fn (gen cgen.Gen, args []Value) {
-    gen.includes.write_string(args[0].str())
-})
 
-// used like this in toplevel:
-$include("header.h")
+fn bar(a int,b int) int {
+    return a + b
+}
+
+fn foo() {
+    // before eval1
+    x := comptime bar(40,2) // or ast.Var('x', ast.Comptime(ast.Call('bar', 40,2)))
+    // after eval1
+    x := 42 // or `ast.Var('x',ast.Int(42))`
+}
+
 ```
 
 # Drawbacks 
@@ -118,8 +144,8 @@ Compile-time execution is great thing. Without it we have to use current ***very
 
 # Unresolved questions
 
-- How would we handle generic types? 
+- ~~How would we handle generic types?~~ Just use `v.ast.TypeSymbol` to handle generics
 - How would we handle imports at compile-time? 
 - How would we handle calls to extenral functions?
 - How would we handle raw memory? 
-
+- What syntax we should have for generating new types?
