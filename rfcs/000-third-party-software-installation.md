@@ -1,6 +1,6 @@
 - Topic Name: `third-party-software-installation`
 - Start Date: 2022-03-22
-  <!-- - RFC PR: [vlang/rfcs#00000](https://github.com/vlang/rfcs/pull/00000) -->
+- RFC PR: [vlang/rfcs#0000](https://github.com/vlang/rfcs/pull/22)
   <!-- - V Issue: [vlang/v#00000](https://github.com/vlang/v/issues/00000) -->
 
 # Summary
@@ -35,8 +35,8 @@ The act of installing the software is done through the following additional step
 2. This will create an executable, along with all other
    relevant files (like templates, etc) in the `bin` directory of the repo. Ideally, the resources will be embedded in the executable to allow for only one executable to be enough.
 3. The executable will be added to `~/.v/bin` for the user to call from anywhere.
-
-An additional **suggestion** is to have the `~/.vmodules` directory be replaced in favour of `~/.v/modules`.
+   TODO.
+   An additional **suggestion** is to have the `~/.vmodules` directory be replaced in favour of `~/.v/modules`.
 
 If there is another script (other than `build.vsh`) that generates the executable
 
@@ -71,6 +71,7 @@ We also make use of the `bin` directory to keep the other files in the root of t
 - Security concerns. Perhaps users should take some extra steps to install software from third-party sources.
 - It will confuse users between the `v install` and `v obtain` or `v install --global` commands.
 - Users need to tinker with their `PATH`.
+- Third-party projects with the same name will cause namespace collision.
 
 # Rationale and alternatives
 
@@ -86,10 +87,23 @@ Rust's `cargo` also allows users to install third-party software. Same for `npm`
 # Unresolved questions
 
 - How do we handle the versions of third-party software?
+
+  See discussion in the Pull Request: [here](https://github.com/vlang/rfcs/pull/22#issuecomment-1075975185)
+
 - How do we allow for multiple versions?
+
+  See discussion in the Pull Request: [here](https://github.com/vlang/rfcs/pull/22#issuecomment-1075975185)
+
 - How do we handle namespace collisions?
+
+  See discussion in the Pull Request: [here](https://github.com/vlang/rfcs/pull/22#issuecomment-1075975185)
+
 - How do we allow for local environments? Like Python's Virtual Environment?
+
+  Probably needs to be discussed in a separate RFC.
 
 # Future possibilities
 
-TODO.
+We should keep the tentative location of `VHOME` customisable.
+This will ease in supporting local environments.
+A separate RFC will be made for this.
