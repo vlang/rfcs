@@ -14,17 +14,17 @@ Additionally, we propose the use of `~/.v` and the relevant subfolders (like `~/
 # Motivation
 
 Currently, V only allows downloading the source code for V modules in the `VMODULES` directory through the `v install` command.
-This is good for making modules globally available. There is currently no streamlined way of _installing_ or _obtaining_ third-party software written in V.
+This is good for making modules globally available. There is currently no streamlined way of _installing_ or _fetching_ or _obtaining_ third-party software written in V.
 
 # Guide-level explanation
 
 Take [_klonol_](https://github.com/hungrybluedev/klonol) for example.
 It is a command-line tool written in V that helps to maintain a local copy of all git repositories on GitHub and Gitea.
 If you want to install it, you have to clone the source yourself, run `v build.vsh` and then add the `bin` folder to `PATH`.
-A nice thing to have is a `v obtain <repo>` or `v install -g <repo>` command (or something else, please comment) that will clone the repo and build it for you.
+A nice thing to have is a `v fetch <repo>` or `v obtain <repo>` command (or something else, please comment) that will clone the repo and build it for you.
 
 Only once, like when V is install, for example, the user needs to add `~/.v/bin` to `PATH`.
-This will make all third-party applications installed using `v obtain <repo>` available from anywhere.
+This will make all third-party applications installed using `v fetch <repo>` available from anywhere.
 
 # Reference-level explanation
 
@@ -69,7 +69,7 @@ We also make use of the `bin` directory to keep the other files in the root of t
 # Drawbacks
 
 - Security concerns. Perhaps users should take some extra steps to install software from third-party sources.
-- It will confuse users between the `v install` and `v obtain` or `v install --global` commands.
+- It will confuse users between the `v install` and `v fetch` or `v obtain` commands.
 - Users need to tinker with their `PATH`.
 - Third-party projects with the same name will cause namespace collision.
 
