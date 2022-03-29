@@ -1,6 +1,6 @@
 - Topic Name: managed_ptr_type
 - Start Date: 2022-03-29
-- RFC PR: [vlang/rfcs#00000](https://github.com/vlang/rfcs/pull/00000)
+- RFC PR: [vlang/rfcs#23](https://github.com/vlang/rfcs/pull/23)
 
 # Summary
 
