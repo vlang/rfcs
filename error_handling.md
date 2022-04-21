@@ -1,12 +1,13 @@
-# Revamping error and none handling
+# Redesign of `error` and `none` handling
 
 ## Abstract
-This RFC proposes to change the current error handling mechanism, because the current `Option` type allows three values, `none`, `IError` and `T`. Handling three different kinds of values in every `or{}` block is confusing and could lead to unwanted behavior.
+This RFC proposes to change the current error handling mechanism, because the current `Option` type allows three values, `none`, `IError` and `T` (a generic type). Handling three different kinds of values in every `or {}` block is confusing and could lead to unwanted behavior.
 
 ## Introduction
-It was several times discussed to change the current error handling / none handling mechanism because `Option` allows three values.
+It was discussed several times to change the current `error` / `none` handling mechanism because `Option` allows three values (see https://github.com/vlang/v/issues/7674).
 It would be better to break them down into two types and the developer specifies which one he actually wants to use.
 
+This examples shows that the developer might be confused how he should handle the values in the or block.
 ```v
 fn foo() ?T {...}
 
@@ -14,7 +15,7 @@ foo() or {
   // should I return a default value when none is returned or panic when an error is returned?
 }
 ```
-The above example currently returns either a `T`, `none` or an `IError`, even if the function only returns `none` and `T` the end user might have to write code that also works with `IError` because the function could return it.
+The above example currently returns either a `T`, `none` or an `IError`, even if the function only returns `none` and `T` the end user might have to write code that also works with `IError` because the function could return it (even it doesn't - the implementation could change).
 
 ## Specification
 ---
@@ -33,17 +34,25 @@ foo() or {
 }
 ```
 
-In case all three values could be possible, `T`, `none` or `error`, implementing anonymous sum types could help allowing the developer to define the return type as:
+In case all three values could be possible, `T`, `none` or `error`, anonymous sum types could help allowing the developer to define the return type as:
 ```v
 fn foo() T | none | Error {...}
 ```
-Using `!?T` will be forbidden.
-
-### Downsides of this specification
-- Anonymous sum types are not yet implemented and needs to be implemented first
+Using `!?T` will be forbidden because it could lead to confusion (is it `?!` or `!?`).
 
 ### Syntax
 In most languages the questionmark `?` stands for optional values and could be used for the `Option` type. The equivalent operator would be the excalamtion mark `!` that could be used for `Result`.
+Examples:
+```
+C#         - Uses ? for Option like types. They can the either be null or have a value.
+TypeScript - Uses ? to describe parameters optional and object properties to be `undefined` or have a value. It's also used for null-checks.
+Zig        - Uses ? for Option and ! for Result
+Kotlin     - Uses ? also for nullable references.
+```
+Also, in natural language for example:
+"Do you have time today?" - a question
+"Stop doing that here!" - an exclaim
+
 That means `?string` would mean `Option<string>` and `!string` would mean `Result<string>`. Having the syntax of `?` and `!` would help indicating that's a compiler feature and is not related to generics or another language feature.
 
 ### Handling the results
@@ -51,7 +60,7 @@ Handling `?T` and `!T` is very easy and it will stay as it currently is:
 ```v
 foo() or {...}
 ```
-for both cases. But the `!T` adds an `err` variable to the `or {}` context. The downside of this is that the user would need to know which result arrives and he is dependent on a language sever to know it.
+for both cases. But the `!T` adds an `err` variable to the `or {}` context. The downside of this is that the user would need to know which result arrives and he is dependent on a language sever to know it (the `err` variable is implicit).
 
 Since `T | none | error` is a sum type it can easily matched:
 ```v
@@ -72,7 +81,7 @@ The following shows a "reification" of !T which must not be supported by V:
 ```v
 fn foo() !string {...}
 x := foo()  // assignment is reification of a Result
-println( foo() )  // passing as an argument is reification of a Result
+println(foo())  // passing as an argument is reification of a Result
 ```
 Instead one must use:
 ```v
@@ -89,8 +98,6 @@ b := match foo() { error { 'abc' } else { it } }
 ```
 
 ## Open Issues
-Since this was discussed several times and is still an unsolved issue we would need to change it as long V is in alpha stage.
-This change also brings breaking changes no matter which syntax will be chosen.
 
 We need to decide which syntax to use in match either `it` or `foo() as x`
 
