@@ -93,5 +93,3 @@ This is also widely used and necessary in Minecraft modding, to override default
 # Future possibilities
 
 The `override` attribute can be extended to consts and functions.
-
-
