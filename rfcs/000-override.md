@@ -49,7 +49,7 @@ Inside the *new* `onDeath` method we call the *old* one and append a new instruc
 
 The above Java code could be the below one in V.
 
-*irrelevant part from the Java code were stripped*
+*irrelevant parts from the Java code were stripped*
 ```v
 import minecraft_stuff
 
