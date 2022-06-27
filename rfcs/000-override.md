@@ -88,7 +88,7 @@ This is also widely used and necessary in Minecraft modding, to override default
 
 # Unresolved questions
 
-\-
+- Should overriding be allowed for built-in methods/structs/functions/... too?
 
 # Future possibilities
 
