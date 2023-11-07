@@ -1,6 +1,6 @@
 - Topic Name: `references-and-pointers`
 - Start Date: 2023-11-7
-- RFC PR: [vlang/rfcs#00000](https://github.com/vlang/rfcs/pull/00000)
+- RFC PR: [vlang/rfcs#29](https://github.com/vlang/rfcs/pull/29)
 <!-- - V Issue: [vlang/v#00000](https://github.com/vlang/v/issues/00000) -->
 
 # Summary
