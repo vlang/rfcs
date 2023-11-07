@@ -225,7 +225,7 @@ When lowering to C, in certain cases the `&` operator when operating on mutable 
 fn C.external(mut &AA)
 
 fn test0(mut v AA) {
-	C.external(&v)
+	C.external(mut &v)
 }
 ```
 
