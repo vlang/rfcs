@@ -20,10 +20,20 @@ Note : I use deepseek-v4-flash to help me write the code, the commit and this RF
 
 # Motivation
 
-V scripts (`.vsh` files) are one of V's key use cases: a single binary
-that replaces shell scripts with a safer, faster, statically-typed
-language. However, V lacked a standard way to run commands and compose
-them via pipes. Developers had three unsatisfactory options:
+The original inspiration for this module comes from the ecosystem of
+shell-scripting-in-general-purpose-languages that emerged in the
+JavaScript/TypeScript world: [Google's zx](https://google.github.io/zx/)
+and [Bun's built-in shell](https://bun.sh/docs/runtime/shell) bring
+shell-like ergonomics to TypeScript by providing tagged templates and
+builder APIs for subprocess execution. These projects demonstrated that
+a typed language can be a compelling alternative to bash for system
+scripts — safer, testable, and cross-platform — without sacrificing the
+conciseness that shell users expect.
+
+V scripts (`.vsh` files) follow the same vision: a single binary that
+replaces shell scripts with a safer, faster, statically-typed language.
+However, V lacked a standard way to run commands and compose them via
+pipes. Developers had three unsatisfactory options:
 
 1. **Shell out**: `os.execute('cmd1 | cmd2')` — fragile, OS-dependent
    quoting, inherits all shell injection risks, no separate stderr capture.
@@ -374,14 +384,14 @@ damage V's credibility as a scripting language.
   builder pattern, caller-managed fd lifetime. The `must()` pattern
   mirrors Rust's `String::from_utf8(output.stdout).unwrap()`.
 
-- **Python**: `subprocess.run()` with `capture_output=True` and
+- **Python**: [`subprocess.run()`](https://docs.python.org/3/library/subprocess.html#subprocess.run) with `capture_output=True` and
   `subprocess.Popen` chaining. Python's approach is more imperative;
   V's is more concise.
 
-- **Zig**: `std.os.ChildProcess` with explicit fd redirection. Zig's
+- **Zig**: [`std.process.Child`](https://ziglang.org/documentation/master/std/#std.process.Child) with explicit fd redirection. Zig's
   approach influenced the `set_std*_fd()` API design.
 
-- **Go**: `os/exec.Cmd` with `.Stdout`/`.Stdin` assignment. Go requires
+- **Go**: [`os/exec.Cmd`](https://pkg.go.dev/os/exec#Cmd) with `.Stdout`/`.Stdin` assignment. Go requires
   manual pipe plumbing (`cmd1.Stdout = cmd2.Stdin`) which is more
   verbose than V's builder chain.
 
@@ -389,9 +399,42 @@ damage V's credibility as a scripting language.
   does not replicate shell syntax or globbing, only the OS-level pipe
   behavior.
 
-- **Tcl**: The `exec` command with `|` pipe syntax. Tcl's approach of
-  in-language subprocess composition influenced the builder chain
+- **[duct](https://github.com/oconnor663/duct.rs) (Rust)**: A Rust crate
+  that provides shell-like pipe composition (`cmd!("echo", "hi").pipe(cmd!("grep", "h"))`)
+  with OS-level pipes and no shell. duct's
+  API design — a builder that composes subprocess commands via `.pipe()`
+  and `.run()` — was a direct influence on the `Cmd` builder chain in
+  this RFC. The crate's handling of pipe lifecycle (immediate write-end
+  close in the parent, proper fd cleanup) informed the implementation
   design.
+
+- **[zx](https://google.github.io/zx/) (Google)**: A JavaScript/TypeScript
+  tool that wraps `child_process` with ergonomic tagged templates
+  (`` await $`command arg` ``). zx popularised the idea of writing
+  system scripts in a typed language rather than bash. Its influence is
+  visible in the naming: `sh()` echoes `$` as the shell invocation,
+  `must()` follows the convention of an "abort on failure" convenience
+  wrapper seen in zx's `$.nothrow()` / `quiet()` modifiers.
+
+- **[Bun Shell](https://bun.sh/docs/runtime/shell)**: Bun's built-in
+  shell (`$` tagged template) provides cross-platform pipe support with
+  redirections and environment variables, all without a system shell.
+  Bun's approach of treating subprocess pipelines as first-class
+  language expressions (rather than string parsing) influenced the
+  decision to use a typed builder API rather than shell-string parsing.
+  The `Cmd.builder().pipe().run()` pattern mirrors Bun's composability.
+
+### Naming conventions
+
+The function and type names in this RFC draw from prior art across
+multiple ecosystems:
+
+| Name | Source | Rationale |
+|------|--------|----------|
+| `sh` | POSIX shell, zx `$` | Short, matches `.vsh` extension |
+| `must` | Rust, zx `$.nothrow()` | "Crash on failure" semantics |
+| `Cmd` | Go, Rust `Command` | Standard builder type name |
+| `run()` | Rust `Command::run()`, duct | Common "execute pipeline" verb |
 
 # Unresolved questions
 
