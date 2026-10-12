@@ -1,6 +1,6 @@
 - Topic Name: custom-attributes
 - Start Date: 2026-10-12
-- RFC PR: [vlang/rfcs#00000](https://github.com/vlang/rfcs/pull/00000)
+- RFC PR: [vlang/rfcs#35](https://github.com/vlang/rfcs/pull/35)
 - V Issue: N/A (to be created by maintainers on acceptance)
 
 # Summary
