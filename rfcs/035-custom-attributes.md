@@ -120,11 +120,15 @@ Multiple attributes group with `;`, as today:
 
 ## What the compiler checks
 
-Unknown names are rejected, and arguments are checked
-against the schema:
+Arguments are checked against the schema. Unknown names
+produce a *warning*, not an error: existing code already
+uses arbitrary `@[...]` names, so rejecting them outright
+would break working programs. The warning names the
+suspected typo and points at schema declaration; it
+becomes an error in a later release (timeline below):
 
 ```v
-@[Rout('/index')] // error: unknown attribute `Rout`
+@[Rout('/index')] // warning: unknown attribute `Rout`
 fn index() {}
 
 @[Route('/index', method: .put)] // error: `put` is not a value of HttpMethod
@@ -133,7 +137,9 @@ fn other() {}
 
 Proposed sample messages (wording open to bikeshedding):
 
-- `` unknown attribute `Rout`. Did you mean `Route`? ``
+- `` warning: unknown attribute `Rout`. Did you mean `Route`?
+  Unvalidated attributes are deprecated; declare a schema
+  with `@[attribute]` or drop the attribute. ``
 - `` attribute `Route` expects 1 positional argument, got 2 ``
 - `` unknown field `metho` in attribute `Route` ``
 - `` cannot initialize struct `Route` marked with `@[attribute]` ``
@@ -159,9 +165,22 @@ its exact spelling is an unresolved question below.)
 Builtin attributes keep yielding `VAttribute`, so existing
 comptime code keeps working.
 
+Struct fields and enum values are the one place that does
+not follow this convention today: in `$for` loops they
+expose raw strings via `.attrs` (`[]string`, e.g.
+`field.attrs.contains('skip')` in `vlib/json2`), not
+`VAttribute`. Under this RFC they gain the same typed
+`.attributes` view as declarations, and the stringly
+`.attrs` is deprecated (kept working, removal after 1.0;
+timeline below). New comptime code should use
+`.attributes`; `json2`-style manual parsing migrates to
+it.
+
 A schema may also declare methods, which comptime code can
-call. This is how a `vweb`-style framework builds its
-route table from declarations instead of compiler magic:
+call like any other method call. This is how a `vweb`-style
+framework builds its route table from declarations instead
+of compiler magic (no new comptime method machinery is
+proposed in this RFC):
 
 ```v
 @[attribute]
@@ -199,6 +218,10 @@ declaration that accepts attributes today.
   exposed as an attribute.
 - The `@[...]` grouping syntax stays; no new `@attr(...)`
   front syntax is introduced.
+- Compatibility is warn-first, not break-first: unregistered
+  attribute names and legacy field `.attrs` keep compiling
+  with a deprecation warning. Nothing that compiles today
+  stops compiling under this RFC.
 
 # Reference-level explanation
 
@@ -212,7 +235,9 @@ Schema structs:
 - must not embed other structs;
 - cannot be initialized, embedded, cast to/from, or used
   as a generic type argument;
-- may declare methods (comptime-callable only);
+- may declare ordinary methods; comptime code may call
+  them under the existing comptime call rules (no special
+  comptime-method machinery in this RFC);
 - are resolved by exact name only: `@[Route]` requires a
   schema literally named `Route`. (Whether `@[Route]` may
   also resolve a schema named `RouteAttribute`, C#-style,
@@ -271,6 +296,12 @@ four members. Code that reaches a member the current
 instance cannot have must narrow with `$if attr is Route`
 first; otherwise it is a compile error.
 
+The same typed view is added for struct fields and enum
+values: `field.attributes` yields schema structs or
+`VAttribute`, exactly like declarations. Their legacy
+`.attrs` (`[]string`) keeps working but is deprecated;
+see the migration timeline question below.
+
 ## Implementation notes
 
 This subsection is for compiler reviewers; it sketches
@@ -294,12 +325,14 @@ follows.
   the existing struct registration.
 - **Validation**: a new pass modeled on `check_export_attrs`
   checks every attribute piece on declarations, fields,
-  and enum values: unknown names (not builtin, not
-  registered) are errors; schema arguments are checked
-  for count, names, and types; target restrictions are
-  enforced per declaration kind. Bans on initializing,
-  embedding, and generic use of schema structs hook the
-  existing struct-init and type-argument checks.
+  and enum values. Unknown names (not builtin, not
+  registered) are *warnings* with a migration message, not
+  errors; schema arguments are checked for count, names,
+  and types (hard errors); target restrictions are
+  enforced per declaration kind (hard errors). Bans on
+  initializing, embedding, and generic use of schema
+  structs hook the existing struct-init and type-argument
+  checks.
 - **Comptime** (`vlib/v/transform/comptime.v`,
   `comptime_attribute_metas_from_raw`, `make_attribute_literal`;
   `vlib/v/gen/c/reflection.v`, `reflection_attributes_array`):
@@ -328,6 +361,12 @@ follows.
   error message.
 - `vweb`/`vpm`-style consumers that parse raw attribute
   strings today must migrate to the typed form.
+- `.attrs` (`[]string`) deprecation touches real comptime
+  code (`vlib/json2` and friends); the migration is
+  mechanical (`.contains('x')` to a typed test) but wide.
+- Warning-first validation means a long tail of warnings
+  in codebases with ad-hoc attributes before the
+  error flip; the flip itself is a scheduled break.
 
 # Rationale and alternatives
 
@@ -342,9 +381,9 @@ disagree with the recommendation.
 Recommended because: no new keyword; reuses the `@[...]`
 syntax programmers already know; gives type-checked
 arguments and targets; matches the maintainer's C# steer;
-is fully backward compatible (the attribute namespace
-was previously unchecked, so *every* program keeps
-compiling).
+is backward compatible by construction (unregistered
+names and legacy `.attrs` warn instead of erroring, so
+*every* program that compiles today keeps compiling).
 
 ## Option B — New `attribute` declaration keyword
 
@@ -402,8 +441,13 @@ keeps framework behavior as compiler magic (#11732).
   `@attr()` form interacts badly with the existing
   syntax history (see #25502's thread).
 - Exact-name resolution only, no `XAttribute` suffix
-  fallback: simpler lookup, one obvious spelling. The
-  suffix fallback is kept as an unresolved question.
+  fallback: simpler lookup, one obvious spelling. Early
+  discussion feedback agrees; the suffix fallback stays
+  listed as an unresolved question in case that changes.
+- Validation is warn-first for unregistered names
+  (hard errors only for schema argument and target
+  misuse): rejecting unknown names outright would break
+  existing code, per early discussion feedback.
 - Escaped-string encoding for structured arguments:
   keeps the flat-AST payload and module cache formats
   stable. A real structured payload is the alternative
@@ -467,8 +511,17 @@ Please comment on these specifically:
 6. Should the flat AST gain a real structured payload
    for attribute arguments instead of the escaped-string
    encoding sketched here?
-7. Anything in this RFC that should explicitly stay out
+7. Migration timelines (proposed; challenge if wrong):
+   unknown-name warning becomes an error one minor
+   release after schemas ship; legacy field `.attrs`
+   is removed after 1.0. Too fast, too slow?
+8. Anything in this RFC that should explicitly stay out
    of scope for the first implementation?
+
+Early discussion signals (vlang/v#30239): exact-name-only
+is preferred over the `XAttribute` suffix fallback, and
+schema methods should behave like ordinary methods. Both
+are reflected above; speak up if you disagree.
 
 # Future possibilities
 
