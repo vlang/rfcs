@@ -278,6 +278,33 @@ Allowed target names mirror declaration kinds: `'fn'`,
 `'struct'`, `'enum'`, `'field'`, `'value'` (enum value),
 `'interface'`, `'module'`. Omitting the list allows all.
 
+## Name resolution across modules
+
+Schemas live in modules, so two modules can declare the
+same schema name (`json.Skip` vs `orm.Skip`). Resolution
+follows V's existing type rules — no new ambiguity error
+and no import-order rule:
+
+- Builtin attributes match first, case-sensitively.
+- A bare `Name` matches a schema in the current module
+  only.
+- A dotted `mod.Name` matches schema `Name` in imported
+  module `mod`.
+- Anything else is the unknown-attribute warning, which
+  suggests the qualified forms when same-named schemas
+  exist in imports.
+
+Consequences: with both `json` and `orm` imported, bare
+`@[Skip]` warns (there is no current-module `Skip`);
+`@[json.Skip]` and `@[orm.Skip]` both work, including
+together on one field: `@[json.Skip; orm.Skip]`.
+
+Dotted names are new syntax in attribute position: today
+a dot splits `@[foo.Bar]` into two attributes (`foo` +
+`Bar`). The parser must accept `mod.Name` (and
+`mod.Name(args)`, binding like the bare call form) as a
+single attribute piece.
+
 ## Comptime reflection
 
 When an attribute matches a registered schema, the
@@ -444,6 +471,9 @@ keeps framework behavior as compiler magic (#11732).
   fallback: simpler lookup, one obvious spelling. Early
   discussion feedback agrees; the suffix fallback stays
   listed as an unresolved question in case that changes.
+- Cross-module schemas resolve V-strict: bare names see
+  the current module only; imports require `mod.Name`
+  (new dotted attribute syntax, since dots split today).
 - Validation is warn-first for unregistered names
   (hard errors only for schema argument and target
   misuse): rejecting unknown names outright would break
@@ -515,7 +545,11 @@ Please comment on these specifically:
    unknown-name warning becomes an error one minor
    release after schemas ship; legacy field `.attrs`
    is removed after 1.0. Too fast, too slow?
-8. Anything in this RFC that should explicitly stay out
+8. Should a bare `@[Skip]` also search imported modules
+   when the current module has no `Skip`, or stay
+   V-strict (qualify)? Recommended: V-strict, matching
+   type resolution.
+9. Anything in this RFC that should explicitly stay out
    of scope for the first implementation?
 
 Early discussion signals (vlang/v#30239): exact-name-only
