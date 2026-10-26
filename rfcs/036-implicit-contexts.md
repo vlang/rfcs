@@ -201,6 +201,23 @@ with alloc {
 }
 ```
 
+The binding is read *per call*, not snapshotted at block entry, so a
+supplier re-assigned inside the region takes effect from the next call
+in it - allocations follow program flow, without nested blocks or
+restore discipline:
+
+```v
+with alloc {
+	for i in 1 .. runs + 1 {
+		if i >= warmup_runs {
+			alloc = &steady_arena // re-bind mid-region
+		}
+		run_seed(i) // allocations land in the supplier's value at the
+		// time of the call: warmup arena early, steady arena after
+	}
+}
+```
+
 ## Propagation through ordinary calls
 
 A function that itself declares context parameters supplies its own
@@ -361,6 +378,24 @@ context parameters:
 - the supplied value lives by ordinary V local rules; no extra
   lifetime machinery enters here.
 
+## Value read semantics
+
+- A `with` block binds an *expression*, and that expression is read
+  at each call that resolves to it, as the call executes: ordinary
+  local-variable rules apply per call site, not once per block.
+  Re-assigning a supplier mid-block updates every subsequent call
+  that resolves to it (the loop example in the guide section). An
+  enclosing function's own context parameter is fixed for its frame,
+  the way a parameter is.
+- Explicit per-call supply (`f[ctx: expr]`) reads `expr` when the
+  call executes, identically.
+- The consequence is that context binding needs no snapshot
+  machinery, no copy-on-write buffer, and no "a loop cannot update
+  the context" carve-out: both binding shapes are an ordinary
+  expression read at an ordinary call site, which some ambient
+  per-scope context systems must reject or work around with
+  indirection (see prior art, Odin).
+
 ## No runtime mechanism
 
 - Implicit propagation is compile-time only. There is no dynamic
@@ -496,7 +531,7 @@ plan with exact diffs follows.
 # Rationale and alternatives
 
 Commenters: this is the section to react to. Please say which
-option you prefer (A-E) and why, especially if you disagree with
+option you prefer (A-F) and why, especially if you disagree with
 the recommendation.
 
 ## Option A - Declared context parameters (recommended)
@@ -589,6 +624,56 @@ compiler patch, the thread-local prototype in `vlib/v/profiler`
 remains the most powerful tool available, and the ecosystem's
 allocator shapes keep diverging.
 
+## Option F - Odin-style universal implicit context
+
+```v
+// no declaration anywhere; every proc and every call is ambient
+fn read_config(path string) !Config {
+	raw := read_bytes(path) // allocates via the ambient context
+	return parse_config(raw)!
+}
+```
+
+The strongest zero-ceremony design: one built-in per-scope `context`
+value, implicitly passed to every call, writable per scope. The
+universal context struct is shaped like Odin's `runtime.Context`
+(one general allocator, a temp allocator, a logger, a random
+generator, weakly typed escape slots), and Odin runs this design in
+production across its entire core library - every allocation builtin
+defaults to the ambient allocator, so third-party libraries
+interoperate without opt-in.
+
+Rejected for V, with the debt acknowledged, because:
+
+- every program carries the surface for every callee: hidden
+  dependencies are structural, not accidental;
+- the calling convention grows an implicit argument on every call,
+  a cost hot-path code pays everywhere (Odin's `"contextless"`
+  convention exists precisely as the opt-out);
+- per-scope copy-on-write snapshots create a documented wall: a
+  context update inside a loop never reaches callees (odin-lang/
+  Odin#7498), and the official workaround is mutable state behind
+  `user_ptr` - the per-call read rule this RFC adopts does not
+  have that wall (see the value read semantics section);
+- a universal struct cannot anticipate each callee's needs, which
+  is why the weakly typed `user_ptr`/`user_index` slots exist as
+  the escape hatch; typed context parameters replace those slots
+  with named, checked requirements, and each library can add its
+  own context type without touching a shared struct;
+- default context values live in the runtime implementation
+  (the `base` package requires `__init_context`), so program-wide
+  context behavior is defined outside the language; declared
+  contexts keep all context behavior in V source.
+
+What Odin proves and this RFC keeps: zero-annotation contexts work
+at ecosystem scale in a manual-memory language, and the stdlib
+defaults are what make it pay for everyone. Both ends land in the
+sequenced rollout (future possibilities): the two-region temp-arena
+allocation convention, and the inventory of which vlib affordances
+could eventually default a resolution through an ambient context -
+rather than either arriving as part of a universal mechanism in the
+first pass.
+
 ## Smaller choices already made (challenge if wrong)
 
 - Plain locals never satisfy context requirements. Supply points
@@ -615,18 +700,18 @@ allocator shapes keep diverging.
 
 Comparison table:
 
-|                         | A. Declared context params | B. Magic `ctx` name | C. Attribute-marked | D. Ambient globals | E. Status quo |
-|-------------------------|-----------------------------|----------------------|----------------------|---------------------|--------------|
-| Declaration             | `[ctx &Allocator]`          | plain `ctx` param    | `@[context]`         | `@[ctx] __global`   | none         |
-| Explicit supply         | `f[ctx: v]`                 | ordinary argument    | attribute syntax     | push/pop pair       | argument     |
-| Region supply           | `with v { ... }`            | push/pop pair        | not expressed        | built-in            | manual       |
-| Plain locals supply     | no (deliberate)             | yes (risk)           | no                   | ambient             | n/a          |
-| Cross-thread safety     | explicit only, enforced     | explicit only        | explicit only        | not usable          | manual       |
-| Runtime cost            | none                        | none                 | none                 | thread-local global | none         |
-| New keyword(s)          | 1 (`with`)                  | 0                    | 0 (needs attrs)      | 2+                  | 0            |
-| Backward compatible     | yes                         | ambiguous            | yes                  | yes                 | yes          |
-| Kills veb special case  | planned follow-up           | eventually           | eventually           | no                  | no           |
-| Comptime reflection     | later                       | yes                  | via attrs            | n/a                 | yes          |
+|                         | A. Declared context params | B. Magic `ctx` name | C. Attribute-marked | D. Ambient globals | E. Status quo | F. Universal context |
+|-------------------------|-----------------------------|----------------------|----------------------|---------------------|--------------|-----------------------|
+| Declaration             | `[ctx &Allocator]`          | plain `ctx` param    | `@[context]`         | `@[ctx] __global`   | none         | none (built-in)       |
+| Explicit supply         | `f[ctx: v]`                 | ordinary argument    | attribute syntax     | push/pop pair       | argument     | awkward (field names) |
+| Region supply           | `with v { ... }`            | push/pop pair        | not expressed        | built-in            | manual       | writes in any block   |
+| Plain locals supply     | no (deliberate)             | yes (risk)           | no                   | ambient             | n/a          | ambient (always)      |
+| Cross-thread safety     | explicit only, enforced     | explicit only        | explicit only        | not usable          | manual       | thread-local copies   |
+| Runtime cost            | none                        | none                 | none                 | thread-local global | none         | implicit arg per call |
+| New keyword(s)          | 1 (`with`)                  | 0                    | 0 (needs attrs)      | 2+                  | 0            | 0                     |
+| Backward compatible     | yes                         | ambiguous            | yes                  | yes                 | yes          | n/a (own ABI)         |
+| Kills veb special case  | planned follow-up           | eventually           | eventually           | no                  | no           | no                    |
+| Comptime reflection     | later                       | yes                  | via attrs            | n/a                 | yes          | n/a                   |
 
 # Prior art
 
@@ -637,6 +722,27 @@ Comparison table:
   context object. This RFC takes Jai's goal (heap choice follows
   scope) and replaces the mutable ambient object with
   compiler-resolved, statically checked edges.
+- **Odin**: the systems-language precedent for the whole roadmap
+  item, and the design reviewers will compare against first.
+  Every scope has an implicit, scope-local `context` value passed
+  by pointer to any call whose callee uses the Odin calling
+  convention ([overview: Implicit context
+  system](https://odin-lang.org/docs/overview/#implicit-context-system)).
+  The universal `Context` struct (`base/runtime/core.odin`) carries
+  a general allocator, a temp allocator, a logger, a random
+  generator, an assertion handler, and weakly typed
+  `user_ptr`/`user_index` slots; the allocation builtins (`new`,
+  `make`, `append`, `delete`) default the allocator from the
+  current context, so every library allocates through the ambient
+  one with no opt-in. Writes are copy-on-write per scope, and
+  `"contextless"` procedures opt out at the calling-convention
+  level. Two of its documented properties shaped Option A's rules
+  and Option F's rejection: the [#7498](https://github.com/odin-lang/Odin/issues/7498)
+  limitation (a context value updated inside a loop never reaches
+  callees; the official workaround is mutable data behind
+  `user_ptr`), which the per-call read rule here avoids, and the
+  universal-struct uniformity that typed per-context parameters
+  replace.
 - **Kotlin**: context parameters
   ([docs](https://kotlinlang.org/docs/context-parameters.html))
   declare bracketed `context(name: Type)` on functions and
@@ -706,6 +812,13 @@ Please comment on these specifically:
     implementation besides the `mut` follow-up (e.g. interface
     context params, per-module default contexts, comptime-specialized
     context values)?
+11. How should context-taking functions meet FFI? A `@[export]`ed
+    (or otherwise externally called) function's context parameters
+    are real parameters at the C ABI, so external callers would
+    pass them positionally at their declared position; is that the
+    whole rule, or should `@[export]` simply forbid bracket
+    declarations in the first version? This RFC defines V-internal
+    calls only.
 
 # Future possibilities
 
@@ -726,3 +839,13 @@ Please comment on these specifically:
   as a second standard consumer: cancellation propagation
   through spawned workers without threading it through every
   `spawn` call manually.
+- A two-region allocation convention: a general allocator plus a
+  scratch-shaped temp allocator, freed regionally in the
+  `free_all`-per-frame style; Odin's design makes the second
+  region first-class, and real allocation workloads want both.
+- An inventory of which vlib affordances can responsibly default a
+  resolution through an ambient context (the way Odin's `new`/
+  `make` default to `context.allocator`) - deliberately out of
+  scope here, and to be weighed honestly, since V's collections
+  are GC-rooted rather than allocator-parameterized, unlike
+  Odin's.
