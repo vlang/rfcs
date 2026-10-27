@@ -151,11 +151,32 @@ pub mut:
 ```
 
 Defaults are provided by the runtime (system allocator, default
-logger). Program entry initializes them; `spawn` copies the
-parent context at spawn time (no implicit sharing afterwards).
-Foreign entry points observe a default context. Functions marked
-`@[contextless]` receive no implicit context and cannot observe
-ambient overrides; they keep their existing signatures.
+logger).
+
+## Entry points and runtime construction
+
+Following Zig's `std.process.Init` precedent (entry boundary
+bundle only, not a forwarding model):
+
+- Program entry constructs the default `Context` before user
+  code runs. An explicit entry form (`fn main(ctx Context)`)
+  may observe it; plain `fn main()` observes the ambient
+  default implicitly.
+- A minimal context covers early/tool paths where the full
+  runtime is not ready yet; document which fields are valid
+  before `main`.
+- Foreign callbacks observe a defined default context and
+  cannot inherit a caller scope implicitly.
+- `spawn` copies the parent context at spawn time (no implicit
+  sharing afterwards).
+- Lifetime: distinguish the process-lifetime backing store
+  from scoped arenas. The acceptance example covers scope
+  exit, but implementations must state which allocator is
+  process-lifetime versus scoped.
+
+Functions marked `@[contextless]` receive no implicit context
+and cannot observe ambient overrides; they keep their existing
+signatures.
 
 ## Explicit control
 
