@@ -208,7 +208,9 @@ fn main() {
 		return
 	}
 	app.base_path = ''
-	app.handle_static(os.join_path(site_root, 'static'), false)!
+	// Mount by explicit path: handle_static derives the URL mount from the
+	// directory string, which breaks for absolute Windows paths.
+	app.mount_static_folder_at(os.join_path(site_root, 'static'), '/static')!
 	veb.run[App, Context](mut app, port)
 }
 
