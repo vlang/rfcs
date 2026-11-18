@@ -1,0 +1,49 @@
+name: Deploy RFC site
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'rfcs/**'
+      - '*.md'
+      - 'site/**'
+      - '.github/workflows/deploy-rfc-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install V
+        run: |
+          wget -q https://github.com/vlang/v/releases/latest/download/v_linux.zip
+          unzip -q v_linux.zip
+          ./v/v version
+      - name: Export static site
+        run: |
+          ./v/v run site --export
+          test -f site/dist/index.html
+          test -f site/dist/search.json
+          ls site/dist/rfc | wc -l
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
