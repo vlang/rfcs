@@ -8,6 +8,12 @@ on:
       - '*.md'
       - 'site/**'
       - '.github/workflows/deploy-rfc-site.yml'
+  pull_request:
+    paths:
+      - 'rfcs/**'
+      - '*.md'
+      - 'site/**'
+      - '.github/workflows/deploy-rfc-site.yml'
   workflow_dispatch:
 
 permissions:
@@ -39,6 +45,7 @@ jobs:
         with:
           path: site/dist
   deploy:
+    if: github.ref == 'refs/heads/master'
     needs: build
     runs-on: ubuntu-latest
     environment:
