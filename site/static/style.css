@@ -1,0 +1,63 @@
+:root {
+  --bg: #ffffff;
+  --fg: #16213a;
+  --muted: #5b6478;
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --header: #0b1220;
+  --card: #f6f8fc;
+  --border: #e2e8f0;
+  --code: #0f172a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+}
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+.site-header { background: var(--header); color: #fff; }
+.site-header .wrap {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 14px; padding-bottom: 14px;
+}
+.brand { color: #fff; text-decoration: none; font-weight: 800; font-size: 20px; }
+.brand-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; margin-right: 8px;
+  background: var(--accent); border-radius: 7px;
+}
+.site-header nav a { color: #cbd5e1; text-decoration: none; margin-left: 16px; }
+.site-header nav a:hover { color: #fff; }
+.intro h1 { font-size: 40px; margin: 28px 0 8px; }
+#rfc-search {
+  width: 100%; padding: 12px 14px; font-size: 16px;
+  border: 1px solid var(--border); border-radius: 10px; margin-top: 16px;
+}
+.rfc-count { color: var(--muted); }
+.rfc-list { display: grid; gap: 14px; padding-bottom: 40px; }
+.rfc-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 18px;
+}
+.rfc-card h2 { margin: 6px 0; font-size: 22px; }
+.rfc-card a { color: var(--accent-dark); }
+.rfc-meta { display: flex; gap: 10px; color: var(--muted); font-size: 13px; }
+.rfc-num { font-weight: 700; color: var(--accent-dark); }
+.rfc-summary { color: #334155; }
+.rfc-links { display: flex; gap: 12px; }
+.rfc-body { padding-bottom: 20px; }
+.rfc-body pre {
+  background: var(--code); color: #e2e8f0;
+  padding: 14px; border-radius: 10px; overflow: auto;
+}
+.rfc-body code { background: #eef2ff; padding: 1px 6px; border-radius: 6px; }
+.rfc-body pre code { background: transparent; padding: 0; }
+.rfc-detail-meta, .rfc-source { color: var(--muted); }
+.site-footer { border-top: 1px solid var(--border); color: var(--muted); padding: 18px 0 40px; }
+@media (max-width: 640px) {
+  .intro h1 { font-size: 30px; }
+  .site-header .wrap { flex-direction: column; gap: 8px; }
+}
