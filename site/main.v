@@ -3,7 +3,6 @@ module main
 import veb
 import net.http
 import os
-import json2
 import strings
 
 const site_root = os.dir(@FILE)
@@ -60,9 +59,8 @@ fn (app &App) rfc_detail(mut ctx Context, slug string) veb.Result {
 // search_json exposes the client-side search index.
 @['/search.json']
 fn (app &App) search_json(mut ctx Context) veb.Result {
-	entries := app.search_entries()
 	ctx.res.header.set(.content_type, 'application/json')
-	return ctx.text(json2.encode(entries))
+	return ctx.text(app.search_json_text())
 }
 
 // not_found_page is reachable as /404 so the static export can write 404.html.
@@ -79,6 +77,40 @@ fn (app &App) find_rfc(slug string) ?Rfc {
 		}
 	}
 	return none
+}
+
+fn (app &App) search_json_text() string {
+	entries := app.search_entries()
+	mut b := strings.new_builder(2048)
+	b.write_u8(`[`)
+	for i, e in entries {
+		if i > 0 {
+			b.write_u8(`,`)
+		}
+		b.write_string('{"id":"' + json_escape(e.id) + '","slug":"' +
+			json_escape(e.slug) + '","title":"' + json_escape(e.title) + '","summary":"' +
+			json_escape(e.summary) + '","url":"' + json_escape(e.url) + '"}')
+	}
+	b.write_u8(`]`)
+	return b.str()
+}
+
+// json_escape renders a string as a JSON string body (without quotes).
+// Summaries are single-line prose, so only quotes, backslashes and common
+// whitespace need escaping; other bytes pass through as UTF-8.
+fn json_escape(s string) string {
+	mut b := strings.new_builder(s.len + 2)
+	for ch in s {
+		match ch {
+			`"` { b.write_string('\\"') }
+			`\\` { b.write_string('\\\\') }
+			`\n` { b.write_string('\\n') }
+			`\r` { b.write_string('\\r') }
+			`\t` { b.write_string('\\t') }
+			else { b.write_u8(ch) }
+		}
+	}
+	return b.str()
 }
 
 fn (app &App) search_entries() []SearchEntry {

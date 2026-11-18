@@ -30,14 +30,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Pinned V source: release binaries predate veb.render_request,
+      # so build the compiler once instead of downloading latest.
       - name: Install V
         run: |
-          wget -q https://github.com/vlang/v/releases/latest/download/v_linux.zip
-          unzip -q v_linux.zip
-          ./v/v version
+          git init -q /tmp/vsrc
+          cd /tmp/vsrc
+          git remote add origin https://github.com/vlang/v
+          git fetch -q --depth 1 origin 85e48d7a5adb9b5be744bfd32adec67df72b0a1b
+          git checkout -q FETCH_HEAD
+          make
+          ./v version
       - name: Export static site
         run: |
-          ./v/v run site --export
+          /tmp/vsrc/v run site --export
           test -f site/dist/index.html
           test -f site/dist/search.json
           ls site/dist/rfc | wc -l
