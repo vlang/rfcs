@@ -28,9 +28,63 @@ In long, RFC process is very simple. It takes just 12 steps!
   - In most cases, the FCP period is quiet, and the RFC is either merged or closed. However, sometimes substantial new arguments or ideas are raised, the FCP is canceled, and the RFC goes back into development mode.
 
 ## Requirements for specific RFC types
-  - [language changes](#)
-  - [library changes](#)
-  - [compiler changes](#)
+
+The criteria below are grouped by the part of the ecosystem a change touches.
+The FAQ lists the same criteria in one place.
+
+### Language changes
+
+  - Any semantic or syntactic change to the language that is not a bugfix.
+  - Removing language features, including those that are feature-gated.
+
+### Library changes
+
+  - Additions to `vlib`.
+
+### Compiler changes
+
+  - Changes to the interface between the compiler and libraries, including lang
+    items and intrinsics.
+
+Changes to vlang organization management need an RFC as well, but belong to
+none of these three groups.
+
+## Active RFCs
+
+An RFC becomes active when its pull request is merged, and leaves this list once
+it has been implemented. The number in a file name is the number of the RFC
+pull request.
+
+  - [Compile-time execution](comptime.md), [#21](https://github.com/vlang/rfcs/pull/21).
+    Run V itself at compile time.
+  - [Redesign of `error` and `none` handling](error_handling.md), [#7](https://github.com/vlang/rfcs/pull/7).
+    Split `Option` into a type for a value and a type for a failure.
+  - [Third-party software installation](rfcs/000-third-party-software-installation.md), [#22](https://github.com/vlang/rfcs/pull/22).
+    Allow installation of third-party V software.
+  - [Managed pointer type](rfcs/001-managed-ptr-type.md), [#23](https://github.com/vlang/rfcs/pull/23).
+    Annotate pointers as pointing to the heap, to the stack, or to a member of a
+    heap object.
+  - [Optional Option/Result](optional-option-result.md), [#24](https://github.com/vlang/rfcs/pull/24).
+    Let a caller handle allocation failure without handling every failure case.
+
+The process these RFCs follow is described in [rfcs/000-rfc-process.md](rfcs/000-rfc-process.md).
+
+Two gaps are worth knowing about in the list above.
+`rfcs/000-rfc-process.md` and `rfcs/000-third-party-software-installation.md` both
+use the `000-` prefix, even though the id is meant to be the pull request number.
+And `comptime.md`, `error_handling.md` and `optional-option-result.md` sit at the
+repository root instead of in `rfcs/`, without the metadata header that
+`000-template.md` asks for.
+
+### Completed RFCs
+
+A completed RFC is removed from this repository, which leaves no record of the
+decision it made. The one below is listed until the repository keeps that record
+somewhere.
+
+  - [add override RFC](https://github.com/vlang/rfcs/pull/25): merged, then
+    removed by [b8cb3a8](https://github.com/vlang/rfcs/commit/b8cb3a8) once it had
+    been implemented.
 
 # FAQ
 
@@ -38,13 +92,7 @@ In long, RFC process is very simple. It takes just 12 steps!
 
 >  <b style="color:yellow">WARNING:</b> If you submit a pull request to implement a new feature without going through the RFC process, it may be closed with a polite request to submit an RFC first.
 
-You need to follow this process if you intend to make significant changes to repos in vlang organization in github. What constitutes a significant change is evolving based on community norms and varies depending on what part of the ecosystem you are proposing to change, but may include the following.
-
-  - Any semantic or syntactic change to the language that is not a bugfix.
-  - Removing language features, including those that are feature-gated.
-  - Changes to the interface between the compiler and libraries, including lang items and intrinsics.
-  - Additions to `vlib`.
-  - Vlang organization management.
+You need to follow this process if you intend to make significant changes to repos in vlang organization in github. What constitutes a significant change is evolving based on community norms and varies depending on what part of the ecosystem you are proposing to change. See [Requirements for specific RFC types](#requirements-for-specific-rfc-types) for the language, library and compiler criteria, and note that vlang organization management needs an RFC too.
 
 Some changes do not require an RFC:
 
@@ -70,4 +118,4 @@ Some accepted RFCs represent vital features that need to be implemented right aw
 
 Usually an RFC pull request marked as "postponed" has already passed an informal first round of evaluation, namely the round of "do we think we would ever possibly consider making this change, as outlined in the RFC pull request, or some semi-obvious variation of it." (When the answer to the latter question is "no", then the appropriate response is to close the RFC, not postpone it.)
 
-Some RFC pull requests are tagged with the "postponed" label when they are closed (as part of the rejection process). An RFC closed with "postponed" is marked as such because we want neither to think about evaluating the proposal nor about implementing the described feature until some time in the future, and we believe that we can afford to wait until then to do so. Historically, "postponed" was used to postpone features until after 1.0. Postponed pull requests may be re-opened when the time is right. We don't have any formal process for that, you should ask reviewers.
+Some RFC pull requests are marked as postponed when they are closed (as part of the rejection process). An RFC closed as postponed is marked as such because we want neither to think about evaluating the proposal nor about implementing the described feature until some time in the future, and we believe that we can afford to wait until then to do so. Historically, postponement was used to postpone features until after 1.0. Postponed pull requests may be re-opened when the time is right. We don't have any formal process for that, you should ask reviewers.
