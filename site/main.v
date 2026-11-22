@@ -136,12 +136,34 @@ fn (app &App) search_entries() []SearchEntry {
 
 const external_icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>'
 
+// pr_number pulls the pull request id out of a GitHub PR URL. RFC templates use
+// 00000 as a placeholder, which is returned as '' so the client skips it.
+fn pr_number(url string) string {
+	marker := '/pull/'
+	i := url.index(marker) or { return '' }
+	tail := url[i + marker.len..]
+	mut n := ''
+	for ch in tail {
+		if ch < `0` || ch > `9` {
+			break
+		}
+		n += ch.ascii_str()
+	}
+	if n == '' || n == '0' || n == '0000' || n == '00000' {
+		return ''
+	}
+	return n.trim_left('0')
+}
+
 fn (app &App) render_index() string {
 	mut cards := strings.new_builder(8192)
 	for r in app.rfcs {
 		num := if r.id == '' { 'Draft' } else { 'RFC ${r.id}' }
 		topic := if r.topic == '' { 'proposal' } else { r.topic }
-		cards.write_string('<article class="rfc-card" data-search="${escape_html(r.title + ' ' + r.slug + ' ' + r.summary + ' ' + r.topic)}">\n')
+		pr_num := pr_number(r.pr)
+		cards.write_string('<article class="rfc-card" data-search="${escape_html(r.title + ' ' + r.slug + ' ' + r.summary + ' ' + r.topic)}"')
+		cards.write_string(' data-id="${escape_html(r.id)}" data-date="${escape_html(r.start_date)}"')
+		cards.write_string(' data-title="${escape_html(r.title.to_lower())}" data-pr="${pr_num}">\n')
 		cards.write_string('<div class="card-top"><span class="rfc-num">${escape_html(num)}</span>')
 		cards.write_string('<span class="rfc-topic">${escape_html(topic)}</span></div>\n')
 		cards.write_string('<h3><a href="${app.base_path}/rfc/${r.slug}/">${escape_html(r.title)}&nbsp;<span class="card-arrow" aria-hidden="true">→</span></a></h3>\n')
@@ -154,10 +176,14 @@ fn (app &App) render_index() string {
 		} else {
 			cards.write_string('<span>Open proposal</span>')
 		}
+		cards.write_string('<span class="card-foot-right">')
+		if pr_num != '' {
+			cards.write_string('<span class="creator" data-pr="${pr_num}"><span class="creator-avatar"></span><span class="creator-name">Loading author…</span></span>')
+		}
 		if r.pr != '' {
 			cards.write_string('<a class="pr-link" href="${escape_html(r.pr)}">Discussion ${external_icon}</a>')
 		}
-		cards.write_string('</div></article>\n')
+		cards.write_string('</span></div></article>\n')
 	}
 	hero := '<section class="hero">\n' +
 		'<p class="eyebrow">V language · design proposals</p>\n' +
@@ -176,8 +202,15 @@ fn (app &App) render_index() string {
 		'<span class="sep">·</span><span>maintained by the V community</span></div>\n' +
 		'</section>\n'
 	catalog := '<section class="catalog" aria-labelledby="catalog-title">\n' +
-		'<div class="section-head"><h2 id="catalog-title">The catalogue</h2>' +
-		'<p class="rfc-count" id="rfc-count" aria-live="polite">${app.rfcs.len} proposals</p></div>\n' +
+		'<div class="section-head"><div class="section-heading">' +
+		'<h2 id="catalog-title">The catalogue</h2>' +
+		'<p class="rfc-count" id="rfc-count" aria-live="polite">${app.rfcs.len} proposals</p></div>' +
+		'<div class="sort-control" role="group" aria-label="Sort proposals">' +
+		'<span class="sort-label">Sort by</span>' +
+		'<button type="button" class="sort-btn is-active" data-sort="number" aria-pressed="true">RFC #</button>' +
+		'<button type="button" class="sort-btn" data-sort="newest" aria-pressed="false">Newest</button>' +
+		'<button type="button" class="sort-btn" data-sort="title" aria-pressed="false">A–Z</button>' +
+		'</div></div>\n' +
 		'<div class="rfc-list" id="rfc-list">\n' + cards.str() + '</div>\n' +
 		'<div class="empty-state" id="rfc-empty" hidden><p>No proposals match that search.</p>' +
 		'<button type="button" id="rfc-reset">Clear search</button></div>\n' +
@@ -208,6 +241,12 @@ fn (app &App) render_rfc(r Rfc) string {
 	if r.headings.len > 0 {
 		aside += '<p class="toc-title">On this page</p><nav class="toc-nav">\n' + toc_links.str() + '</nav>'
 	}
+	pr_num := pr_number(r.pr)
+	if pr_num != '' {
+		aside += '<div class="toc-creator"><p class="toc-title">Proposed by</p>' +
+			'<span class="creator" data-pr="${pr_num}"><span class="creator-avatar"></span>' +
+			'<span class="creator-name">Loading author…</span></span></div>'
+	}
 	aside += '<div class="toc-links">'
 	if r.pr != '' {
 		aside += '<a href="${escape_html(r.pr)}">Discussion PR ${external_icon}</a>'
@@ -228,10 +267,11 @@ fn (app &App) layout(title string, inner string, description string) string {
 		'<meta name="theme-color" content="#0a0e16" />\n' +
 		'<meta name="description" content="${escape_html(desc)}" />\n' +
 		'<title>${escape_html(title)}</title>\n' +
+		'<link rel="icon" type="image/png" href="${base}/static/v-logo.png" />\n' +
 		'<link rel="stylesheet" href="${base}/static/style.css" />\n' + '</head>\n<body>\n' +
 		'<a class="skip-link" href="#main">Skip to content</a>\n' +
 		'<header class="site-header"><div class="container header-inner">\n' +
-		'<a class="brand" href="${base}/"><span class="brand-mark" aria-hidden="true">V</span><span>RFCs</span></a>\n' +
+		'<a class="brand" href="${base}/"><span class="brand-mark"><img src="${base}/static/v-logo.png" alt="V" width="30" height="30" /></span><span>RFCs</span></a>\n' +
 		'<nav class="site-nav" aria-label="Primary">' +
 		'<a class="nav-link is-current" href="${base}/">Index</a>' +
 		'<a class="nav-link nav-secondary" href="https://vlang.io">vlang.io</a>' +
@@ -240,7 +280,7 @@ fn (app &App) layout(title string, inner string, description string) string {
 		'</nav>\n</div></header>\n' +
 		'<main id="main" class="container">\n' + inner + '\n</main>\n' +
 		'<footer class="site-footer"><div class="container footer-inner">\n' +
-		'<p>V RFCs · <a href="https://github.com/vlang/rfcs">vlang/rfcs</a></p>\n' +
+		'<p class="footer-brand"><img src="${base}/static/v-logo.png" alt="" width="20" height="20" /> V RFCs · <a href="https://github.com/vlang/rfcs">vlang/rfcs</a></p>\n' +
 		'<p>Built with V and veb · inspired by <a href="https://vlang.io">vlang.io</a></p>\n' +
 		'</div></footer>\n' +
 		'<script src="${base}/static/app.js" defer></script>\n' + '</body>\n</html>\n'
@@ -324,7 +364,7 @@ fn copy_static() ! {
 	dst := os.join_path(out_dir, 'static')
 	os.mkdir_all(dst)!
 	for name in os.ls(src)! {
-		if name.ends_with('.css') || name.ends_with('.js') {
+		if name.ends_with('.css') || name.ends_with('.js') || name.ends_with('.png') {
 			data := os.read_file(os.join_path(src, name))!
 			os.write_file(os.join_path(dst, name), data)!
 		}

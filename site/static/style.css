@@ -133,16 +133,15 @@ svg { display: block; }
 .brand-mark {
 	display: grid;
 	place-items: center;
-	width: 30px;
-	height: 30px;
+	width: 32px;
+	height: 32px;
 	border-radius: 8px;
-	background: var(--accent);
-	color: var(--accent-ink);
-	font-family: var(--font-mono);
-	font-size: 16px;
-	font-weight: 900;
-	box-shadow: 0 0 0 1px var(--accent-line), 0 6px 18px rgba(90, 169, 255, 0.25);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
+.brand:hover .brand-mark { border-color: var(--accent-line); background: var(--surface-2); }
+.brand-mark img { width: 24px; height: 24px; object-fit: contain; }
 
 .site-nav { display: flex; align-items: center; gap: 4px; }
 .nav-link {
@@ -267,13 +266,15 @@ svg { display: block; }
 .catalog { padding-bottom: 96px; }
 .section-head {
 	display: flex;
-	align-items: baseline;
+	flex-wrap: wrap;
+	align-items: center;
 	justify-content: space-between;
-	gap: 16px;
+	gap: 12px 18px;
 	margin-bottom: 22px;
 	padding-bottom: 14px;
 	border-bottom: 1px solid var(--border-soft);
 }
+.section-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
 .section-head h2 {
 	margin: 0;
 	color: var(--text-muted);
@@ -289,6 +290,46 @@ svg { display: block; }
 	font-size: 13px;
 	font-variant-numeric: tabular-nums;
 }
+
+/* sort — a segmented control, never a native select */
+.sort-control {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 3px;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+}
+.sort-label {
+	margin: 0 8px 0 6px;
+	color: var(--text-faint);
+	font-size: 12px;
+	white-space: nowrap;
+}
+.sort-btn {
+	min-height: 28px;
+	padding: 4px 10px;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 7px;
+	color: var(--text-muted);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: color var(--dur) var(--ease), background var(--dur) var(--ease),
+		border-color var(--dur) var(--ease);
+}
+.sort-btn:hover { color: var(--text); background: var(--surface-2); }
+.sort-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sort-btn:active { background: var(--bg); }
+.sort-btn[aria-pressed="true"] {
+	color: var(--accent-strong);
+	background: var(--accent-soft);
+	border-color: var(--accent-line);
+}
+.sort-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .rfc-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .rfc-card {
@@ -377,9 +418,40 @@ svg { display: block; }
 	color: var(--text-faint);
 	font-size: 12px;
 }
-.pr-link { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); }
+.card-foot time { white-space: nowrap; }
+.card-foot-right { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.pr-link { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); white-space: nowrap; }
 .pr-link:hover { color: var(--accent); }
 .pr-link svg { width: 13px; height: 13px; }
+
+/* creator, resolved from the GitHub public API */
+.creator {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+.creator-avatar {
+	flex: none;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	overflow: hidden;
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	transition: border-color var(--dur) var(--ease);
+}
+.creator[data-loaded="true"] .creator-avatar { border-color: var(--accent-line); }
+.creator-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.creator[data-loaded="true"] .creator-name { color: var(--text); font-weight: 600; }
+.creator a { color: var(--text-muted); }
+.creator a:hover { color: var(--accent); }
 
 .empty-state {
 	padding: 64px 20px;
@@ -418,6 +490,8 @@ svg { display: block; }
 	font-size: 13px;
 }
 .footer-inner p { margin: 0; }
+.footer-brand { display: inline-flex; align-items: center; gap: 7px; }
+.footer-brand img { width: 18px; height: 18px; object-fit: contain; }
 .footer-inner a {
 	color: var(--text-muted);
 	text-decoration: underline;
@@ -571,6 +645,10 @@ svg { display: block; }
 .toc-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); }
 .toc-links a:hover { color: var(--accent); }
 .toc-links svg { width: 13px; height: 13px; }
+.toc-creator { margin-top: 24px; }
+.toc-creator .toc-title { margin-bottom: 8px; }
+.toc-creator .creator-avatar { width: 22px; height: 22px; }
+.toc-creator + .toc-links { margin-top: 18px; }
 
 /* wider screens are layered on — base above IS the phone layout */
 @media (min-width: 640px) {
