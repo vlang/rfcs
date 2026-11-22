@@ -23,6 +23,12 @@ struct Context {
 	veb.Context
 }
 
+struct Heading {
+	level int
+	title string
+	id    string
+}
+
 struct Rfc {
 	id         string
 	slug       string
@@ -33,6 +39,7 @@ struct Rfc {
 	summary    string
 	body_html  string
 	source     string
+	headings   []Heading
 }
 
 struct SearchEntry {
@@ -127,72 +134,115 @@ fn (app &App) search_entries() []SearchEntry {
 	return out
 }
 
+const external_icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>'
+
 fn (app &App) render_index() string {
 	mut cards := strings.new_builder(8192)
 	for r in app.rfcs {
-		num := if r.id == '' { '—' } else { r.id }
+		num := if r.id == '' { 'Draft' } else { 'RFC ${r.id}' }
+		topic := if r.topic == '' { 'proposal' } else { r.topic }
 		cards.write_string('<article class="rfc-card" data-search="${escape_html(r.title + ' ' + r.slug + ' ' + r.summary + ' ' + r.topic)}">\n')
-		cards.write_string('<div class="rfc-meta"><span class="rfc-num">#${escape_html(num)}</span>')
-		if r.start_date != '' {
-			cards.write_string('<span class="rfc-date">${escape_html(r.start_date)}</span>')
-		}
-		cards.write_string('</div>\n')
-		cards.write_string('<h2><a href="${app.base_path}/rfc/${r.slug}/">${escape_html(r.title)}</a></h2>\n')
+		cards.write_string('<div class="card-top"><span class="rfc-num">${escape_html(num)}</span>')
+		cards.write_string('<span class="rfc-topic">${escape_html(topic)}</span></div>\n')
+		cards.write_string('<h3><a href="${app.base_path}/rfc/${r.slug}/">${escape_html(r.title)}&nbsp;<span class="card-arrow" aria-hidden="true">→</span></a></h3>\n')
 		if r.summary != '' {
 			cards.write_string('<p class="rfc-summary">${escape_html(r.summary)}</p>\n')
 		}
-		cards.write_string('<div class="rfc-links"><a href="${app.base_path}/rfc/${r.slug}/">Read RFC →</a>')
+		cards.write_string('<div class="card-foot">')
+		if r.start_date != '' {
+			cards.write_string('<time>${escape_html(r.start_date)}</time>')
+		} else {
+			cards.write_string('<span>Open proposal</span>')
+		}
 		if r.pr != '' {
-			cards.write_string(' <a class="rfc-pr" href="${escape_html(r.pr)}">PR ↗</a>')
+			cards.write_string('<a class="pr-link" href="${escape_html(r.pr)}">Discussion ${external_icon}</a>')
 		}
 		cards.write_string('</div></article>\n')
 	}
-	body := '<section class="intro">\n' + '<h1>V RFCs</h1>\n' +
-		'<p>Request for Comments for changes to the V language and standard library. ' +
-		'Read the <a href="https://github.com/vlang/rfcs#rfc-proposal-process">RFC process</a> ' +
-		'or <a href="https://github.com/vlang/rfcs">contribute on GitHub</a>.</p>\n' +
-		'<input id="rfc-search" type="search" placeholder="Filter RFCs…" aria-label="Filter RFCs" />\n' +
-		'<p class="rfc-count" id="rfc-count">${app.rfcs.len} RFCs</p>\n' + '</section>\n' +
-		'<section class="rfc-list" id="rfc-list">\n' + cards.str() + '</section>\n'
-	return app.layout('V RFCs', body)
+	hero := '<section class="hero">\n' +
+		'<p class="eyebrow">V language · design proposals</p>\n' +
+		'<h1>V <span class="accent">RFCs</span></h1>\n' +
+		'<p class="lead">Requests for Comments are how the V community proposes, debates and ' +
+		'refines changes to the language and its standard library. ' +
+		'<a href="https://github.com/vlang/rfcs#rfc-proposal-process">Read the process</a> or ' +
+		'<a href="https://github.com/vlang/rfcs">contribute on GitHub</a>.</p>\n' +
+		'<div class="search-wrap">\n' +
+		'<svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>\n' +
+		'<input id="rfc-search" type="search" placeholder="Search proposals, topics, titles…" aria-label="Search RFCs" autocomplete="off" spellcheck="false" />\n' +
+		'<kbd class="search-kbd" aria-hidden="true">/</kbd>\n' +
+		'</div>\n' +
+		'<div class="hero-stats"><span><strong>${app.rfcs.len}</strong> documents</span>' +
+		'<span class="sep">·</span><span>open to discussion</span>' +
+		'<span class="sep">·</span><span>maintained by the V community</span></div>\n' +
+		'</section>\n'
+	catalog := '<section class="catalog" aria-labelledby="catalog-title">\n' +
+		'<div class="section-head"><h2 id="catalog-title">The catalogue</h2>' +
+		'<p class="rfc-count" id="rfc-count" aria-live="polite">${app.rfcs.len} proposals</p></div>\n' +
+		'<div class="rfc-list" id="rfc-list">\n' + cards.str() + '</div>\n' +
+		'<div class="empty-state" id="rfc-empty" hidden><p>No proposals match that search.</p>' +
+		'<button type="button" id="rfc-reset">Clear search</button></div>\n' +
+		'</section>\n'
+	return app.layout('V RFCs', hero + catalog, 'Requests for Comments for changes to the V language and standard library.')
 }
 
 fn (app &App) render_rfc(r Rfc) string {
 	num := if r.id == '' { 'Draft' } else { 'RFC ${r.id}' }
-	mut meta := '<p class="rfc-detail-meta"><a href="${app.base_path}/">← All RFCs</a> · ${escape_html(num)}'
-	if r.start_date != '' {
-		meta += ' · ${escape_html(r.start_date)}'
-	}
+	crumbs := '<nav class="breadcrumb" aria-label="Breadcrumb"><a href="${app.base_path}/">All RFCs</a>' +
+		'<span class="sep">/</span><span>${escape_html(num)}</span></nav>\n'
+
+	mut meta := '<div class="detail-meta"><span class="rfc-num">${escape_html(num)}</span>'
 	if r.topic != '' {
-		meta += ' · <code>${escape_html(r.topic)}</code>'
+		meta += '<span class="rfc-topic">${escape_html(r.topic)}</span>'
 	}
-	meta += '</p>'
-	mut links := '<p class="rfc-source">'
+	if r.start_date != '' {
+		meta += '<time>${escape_html(r.start_date)}</time>'
+	}
+	meta += '</div>'
+	head := '<header class="detail-head">' + meta + '<h1>${escape_html(r.title)}</h1></header>\n'
+
+	mut toc_links := strings.new_builder(512)
+	for h in r.headings {
+		toc_links.write_string('<a class="toc-lvl-${h.level}" href="#${h.id}">${escape_html(h.title)}</a>\n')
+	}
+	mut aside := '<aside class="toc" aria-label="On this page">'
+	if r.headings.len > 0 {
+		aside += '<p class="toc-title">On this page</p><nav class="toc-nav">\n' + toc_links.str() + '</nav>'
+	}
+	aside += '<div class="toc-links">'
 	if r.pr != '' {
-		links += '<a href="${escape_html(r.pr)}">Discussion PR ↗</a> · '
+		aside += '<a href="${escape_html(r.pr)}">Discussion PR ${external_icon}</a>'
 	}
-	links += '<a href="https://github.com/vlang/rfcs/blob/master/${escape_html(r.source)}">Source on GitHub ↗</a></p>'
-	body := meta + '<article class="rfc-body">\n<h1>${escape_html(r.title)}</h1>\n' + r.body_html +
-		'\n</article>\n' + links
-	return app.layout(r.title + ' — V RFCs', body)
+	aside += '<a href="https://github.com/vlang/rfcs/blob/master/${escape_html(r.source)}">Source on GitHub ${external_icon}</a>'
+	aside += '</div></aside>\n'
+
+	inner := '<div class="detail">' + crumbs + head + '<div class="detail-grid">' +
+		'<article class="rfc-body">\n' + r.body_html + '\n</article>\n' + aside + '</div></div>\n'
+	return app.layout(r.title + ' — V RFCs', inner, r.summary)
 }
 
-fn (app &App) layout(title string, inner string) string {
+fn (app &App) layout(title string, inner string, description string) string {
 	base := app.base_path
+	desc := if description == '' { 'Requests for Comments for changes to the V language and standard library.' } else { description }
 	return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8" />\n' +
 		'<meta name="viewport" content="width=device-width, initial-scale=1" />\n' +
+		'<meta name="theme-color" content="#0a0e16" />\n' +
+		'<meta name="description" content="${escape_html(desc)}" />\n' +
 		'<title>${escape_html(title)}</title>\n' +
 		'<link rel="stylesheet" href="${base}/static/style.css" />\n' + '</head>\n<body>\n' +
-		'<header class="site-header"><div class="wrap">\n' +
-		'<a class="brand" href="${base}/"><span class="brand-mark">V</span><span>RFCs</span></a>\n' +
-		'<nav><a href="${base}/">Index</a>' +
-		'<a href="https://vlang.io">vlang.io</a>' +
-		'<a href="https://docs.vlang.io">Docs</a>' +
-		'<a href="https://github.com/vlang/rfcs">GitHub</a></nav>\n' + '</div></header>\n' +
-		'<main class="wrap">\n' + inner + '\n</main>\n' +
-		'<footer class="site-footer"><div class="wrap">\n' +
-		'<p>V RFCs · <a href="https://github.com/vlang/rfcs">vlang/rfcs</a> · ' +
-		'Theme inspired by <a href="https://vlang.io">vlang.io</a></p>\n' + '</div></footer>\n' +
+		'<a class="skip-link" href="#main">Skip to content</a>\n' +
+		'<header class="site-header"><div class="container header-inner">\n' +
+		'<a class="brand" href="${base}/"><span class="brand-mark" aria-hidden="true">V</span><span>RFCs</span></a>\n' +
+		'<nav class="site-nav" aria-label="Primary">' +
+		'<a class="nav-link is-current" href="${base}/">Index</a>' +
+		'<a class="nav-link nav-secondary" href="https://vlang.io">vlang.io</a>' +
+		'<a class="nav-link nav-secondary" href="https://docs.vlang.io">Docs</a>' +
+		'<a class="nav-link nav-github" href="https://github.com/vlang/rfcs">GitHub ${external_icon}</a>' +
+		'</nav>\n</div></header>\n' +
+		'<main id="main" class="container">\n' + inner + '\n</main>\n' +
+		'<footer class="site-footer"><div class="container footer-inner">\n' +
+		'<p>V RFCs · <a href="https://github.com/vlang/rfcs">vlang/rfcs</a></p>\n' +
+		'<p>Built with V and veb · inspired by <a href="https://vlang.io">vlang.io</a></p>\n' +
+		'</div></footer>\n' +
 		'<script src="${base}/static/app.js" defer></script>\n' + '</body>\n</html>\n'
 }
 
@@ -225,7 +275,7 @@ fn export_site(mut app &App) ! {
 		// bare dev fragment, so GitHub Pages serves a styled error page.
 		body := if route == '/404' {
 			app.layout('Page not found — V RFCs',
-				'<h1>Page not found</h1><p><a href="${app.base_path}/">Back to RFC index</a></p>')
+				'<div class="detail"><h1>Page not found</h1><p><a href="${app.base_path}/">Back to RFC index</a></p></div>', '')
 		} else {
 			render_route(app, route)
 		}
@@ -335,7 +385,7 @@ fn parse_rfc_file(path string, source string) !Rfc {
 		} else if t.starts_with('# ') && title == '' {
 			candidate := t[2..].trim_space()
 			if !is_template_section(candidate) {
-				title = candidate
+				title = plain_text(candidate)
 			}
 		}
 		if title != '' && topic != '' && start_date != '' {
@@ -358,7 +408,7 @@ fn parse_rfc_file(path string, source string) !Rfc {
 		}
 		if seen_heading && t != '' && !t.starts_with('#') && !t.starts_with('- ')
 			&& !t.starts_with('![') && i < lines.len - 1 {
-			summary = t
+			summary = plain_text(t)
 			if summary.len > 220 {
 				summary = summary[..220] + '…'
 			}
@@ -376,6 +426,35 @@ fn parse_rfc_file(path string, source string) !Rfc {
 			break
 		}
 	}
+	// Collect the same headings the renderer emits, with matching anchors, so
+	// the table of contents can never drift from the article.
+	mut used_slugs := []string{}
+	mut headings := []Heading{}
+	for line in body_lines {
+		t := line.trim_space()
+		mut level := 0
+		mut heading_text := ''
+		if t.starts_with('#### ') {
+			level = 4
+			heading_text = t[5..].trim_space()
+		} else if t.starts_with('### ') {
+			level = 3
+			heading_text = t[4..].trim_space()
+		} else if t.starts_with('## ') {
+			level = 2
+			heading_text = t[3..].trim_space()
+		} else if t.starts_with('# ') {
+			level = 2
+			heading_text = t[2..].trim_space()
+		}
+		if level > 0 {
+			headings << Heading{
+				level: level
+				title: heading_text
+				id:    unique_slug(heading_text, mut used_slugs)
+			}
+		}
+	}
 	body_html := md_to_html(body_lines.join('\n'))
 	return Rfc{
 		id:         id
@@ -387,6 +466,7 @@ fn parse_rfc_file(path string, source string) !Rfc {
 		summary:    summary
 		body_html:  body_html
 		source:     source
+		headings:   headings
 	}
 }
 
@@ -429,10 +509,48 @@ fn escape_html(s string) string {
 	return b.str()
 }
 
+// plain_text keeps inline Markdown decorations out of titles and summaries.
+fn plain_text(s string) string {
+	return s.replace('`', '').replace('**', '').replace('__', '')
+}
+
+// slugify turns a heading into a stable, URL-safe anchor.
+fn slugify(s string) string {
+	mut b := strings.new_builder(s.len)
+	mut prev_dash := false
+	for ch in s.to_lower() {
+		if (ch >= `a` && ch <= `z`) || (ch >= `0` && ch <= `9`) {
+			b.write_u8(ch)
+			prev_dash = false
+		} else if !prev_dash {
+			b.write_u8(`-`)
+			prev_dash = true
+		}
+	}
+	return b.str().trim_left('-').trim_right('-')
+}
+
+// unique_slug keeps anchors unique when a document repeats a heading.
+fn unique_slug(title string, mut used []string) string {
+	mut base := slugify(title)
+	if base == '' {
+		base = 'section'
+	}
+	mut id := base
+	mut n := 2
+	for used.contains(id) {
+		id = '${base}-${n}'
+		n++
+	}
+	used << id
+	return id
+}
+
 // md_to_html is a small self-contained Markdown renderer, enough for RFC prose:
 // headings, fenced code, lists, links, bold, inline code and paragraphs.
 fn md_to_html(md string) string {
 	mut out := strings.new_builder(md.len + 1024)
+	mut used_slugs := []string{}
 	mut in_code := false
 	mut code_lang := ''
 	mut in_list := false
@@ -456,12 +574,7 @@ fn md_to_html(md string) string {
 					in_list = false
 				}
 				code_lang = t.trim_left('`').trim_space()
-				if code_lang != '' {
-					out.write_string('<pre><code class="lang-' + escape_html(code_lang) +
-						'">')
-				} else {
-					out.write_string('<pre><code>')
-				}
+				out.write_string('<pre class="code-block" data-lang="' + escape_html(code_lang) + '"><code>')
 				in_code = true
 			}
 			continue
@@ -492,7 +605,9 @@ fn md_to_html(md string) string {
 				out.write_string('</ul>\n')
 				in_list = false
 			}
-			out.write_string('<h4>' + inline_md(t[5..].trim_space()) + '</h4>\n')
+			htext := t[5..].trim_space()
+			hid := unique_slug(htext, mut used_slugs)
+			out.write_string('<h4 id="' + hid + '">' + inline_md(htext) + '</h4>\n')
 		} else if t.starts_with('### ') {
 			pt := para.str().trim_space()
 			if pt != '' {
@@ -503,7 +618,9 @@ fn md_to_html(md string) string {
 				out.write_string('</ul>\n')
 				in_list = false
 			}
-			out.write_string('<h3>' + inline_md(t[4..].trim_space()) + '</h3>\n')
+			htext := t[4..].trim_space()
+			hid := unique_slug(htext, mut used_slugs)
+			out.write_string('<h3 id="' + hid + '">' + inline_md(htext) + '</h3>\n')
 		} else if t.starts_with('## ') {
 			pt := para.str().trim_space()
 			if pt != '' {
@@ -514,7 +631,9 @@ fn md_to_html(md string) string {
 				out.write_string('</ul>\n')
 				in_list = false
 			}
-			out.write_string('<h2>' + inline_md(t[3..].trim_space()) + '</h2>\n')
+			htext := t[3..].trim_space()
+			hid := unique_slug(htext, mut used_slugs)
+			out.write_string('<h2 id="' + hid + '">' + inline_md(htext) + '</h2>\n')
 		} else if t.starts_with('# ') {
 			pt := para.str().trim_space()
 			if pt != '' {
@@ -525,7 +644,9 @@ fn md_to_html(md string) string {
 				out.write_string('</ul>\n')
 				in_list = false
 			}
-			out.write_string('<h2>' + inline_md(t[2..].trim_space()) + '</h2>\n')
+			htext := t[2..].trim_space()
+			hid := unique_slug(htext, mut used_slugs)
+			out.write_string('<h2 id="' + hid + '">' + inline_md(htext) + '</h2>\n')
 		} else if t.starts_with('- ') || t.starts_with('* ') {
 			pt := para.str().trim_space()
 			if pt != '' {
