@@ -438,6 +438,11 @@ fn parse_rfc_file(path string, source string) !Rfc {
 	if title == '' {
 		title = humanize_slug(slug)
 	}
+	// Template placeholder PRs (00000 / 0000) are not real discussions. Drop
+	// them so neither the card nor the detail page renders a broken link.
+	if pr != '' && pr_number(pr) == '' {
+		pr = ''
+	}
 	// summary is the first non-heading paragraph after the first heading
 	mut seen_heading := false
 	for i, line in lines {
