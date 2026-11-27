@@ -1,6 +1,6 @@
 - Topic Name: `heterogeneous_compute`
 - Start Date: 2026-11-27
-- RFC PR: [vlang/rfcs#00000](https://github.com/vlang/rfcs/pull/00000)
+- RFC PR: [vlang/rfcs#39](https://github.com/vlang/rfcs/pull/39)
 - V Issue: TBD
 
 # Summary
